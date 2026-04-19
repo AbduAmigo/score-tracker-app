@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -12,1516 +12,1252 @@ import {
   Alert,
   Modal,
   FlatList,
+  Linking,
+  Dimensions,
 } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';   // << NEW
 
-const MAX_PLAYERS = 5;
-const MAX_SCORE = 30;
+const MAX_PLAYERS = 10;
+const MAX_SCORE = 31;
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Translations
-const translations = {
+// ─── Translations ────────────────────────────────────────────────────────────
+const T = {
   ar: {
-    startAppTitle: 'تتبع النقاط',
-    startAppSubtitle: 'ابدأ لعبتك بطريقة سهلة وجميلة',
-    startButton: 'ابدأ',
-    home: 'الصفحة الرئيسية',
+    appName: 'تتبع النقاط',
+    subtitle: 'ابدأ لعبتك بطريقة سهلة وجميلة',
+    start: 'ابدأ',
     play: 'لعب',
+    rounds: 'الجولات',
     more: 'المزيد',
-    totalGames: 'إجمالي الألعاب',
+    setupTitle: 'إعداد اللاعبين',
+    addPlayersHint: 'ابدأ بإضافة اللاعبين',
     playerName: 'اسم اللاعب',
-    status: 'الحالة',
-    winner: 'الفائز',
-    loser: 'الخاسر',
-    round: 'الجولة',
-    startPlay: 'ابدأ اللعبة',
     enterName: 'أدخل اسم اللاعب',
-    addMore: 'إضافة',
-    addMorePlayers: 'إضافة المزيد من اللاعبين',
-    startGame: 'بدء اللعبة',
-    endRound: 'إنهاء الجولة',
+    startGame: 'ابدأ اللعبة',
+    roundN: 'الجولة',
     score: 'النقاط',
+    total: 'المجموع',
+    tapToScore: 'اضغط على اللاعب لإدخال نقاطه',
+    enterScore: 'أدخل نقاط هذه الجولة',
+    quickAdd: 'إضافة سريعة',
+    confirm: 'تأكيد',
+    cancel: 'إلغاء',
+    endRound: 'إنهاء الجولة',
+    resetGame: 'إعادة تعيين',
+    winner: 'الفائز',
+    active: 'نشط',
+    out: 'خارج',
+    noRounds: 'لا توجد جولات بعد',
+    startFirst: 'ابدأ لعبة أولاً لتظهر الجولات هنا',
+    playAgain: 'لعبة جديدة',
+    gameN: 'لعبة',
     language: 'اللغة',
-    english: 'English',
-    arabic: 'العربية',
     aboutMe: 'عني',
     contact: 'تواصل معي',
-    aboutContent: 'مرحبا! أنا مطور تطبيقات متخصص في تطوير واجهات مستخدم جميلة.',
-    socialMedia: '@abdu_amigo',
-    gamesPlayed: 'الألعاب المنتهية',
-    noData: 'لا توجد بيانات',
-    resetGame: 'إعادة تعيين اللعبة',
-    resetConfirmTitle: 'مسح النتائج',
-    resetConfirmMessage: 'هل أنت متأكد من إعادة الضبط بالكامل؟',
-    cancel: 'إلغاء',
-    confirm: 'تأكيد',
-    active: 'نشط',
     close: 'إغلاق',
-  },
-  en: {
-    startAppTitle: 'Score Tracker',
-    startAppSubtitle: 'Start your game smoothly & beautifully',
-    startButton: 'Start',
-    home: 'Home',
-    play: 'Play',
-    more: 'More',
-    totalGames: 'Total Games Played',
-    playerName: 'Player Name',
-    status: 'Status',
-    winner: 'Winner',
-    loser: 'Loser',
-    round: 'Round',
-    startPlay: 'Start Game',
-    enterName: 'Enter Player Name',
-    addMore: 'Add More',
-    addMorePlayers: 'Add More Players',
-    startGame: 'Start Game',
-    endRound: 'End Round',
-    score: 'Score',
-    language: 'Language',
+    aboutContent:
+      'أنا عبد الله أحمد، مطور تطبيقات ومواقع سوداني، بخبرة تمتد لتسع (9) سنوات في بناء وتطوير الحلول التقنية الذكية المعتمدة على الذكاء الاصطناعي (AI).',
+    minPlayers: 'أضف لاعبَين على الأقل للبدء',
+    maxScoreLabel: 'حد الإقصاء: 31 نقطة',
+    status: 'الحالة',
+    resetConfirmTitle: 'مسح اللعبة',
+    resetConfirmMessage: 'هل أنت متأكد من إعادة الضبط بالكامل؟',
+    rules:
+      'هدف اللعبة: التخلص من جميع الأوراق بإنزالها على الطاولة في مجموعات.\n• النزول الأول يحتاج 51 نقطة أو أكثر.\n• أوراق A, K, Q, J = 10 نقاط.\n• الأوراق 2–10 بقيمتها الرقمية.\n• يمكن أن تكون النقاط سالبة (عند إضافة أوراق لمجموعات الآخرين).',
+    activePlayersCount: 'لاعبون نشطون',
     english: 'English',
     arabic: 'العربية',
+  },
+  en: {
+    appName: 'Score Tracker',
+    subtitle: 'Start your game smoothly & beautifully',
+    start: 'Start',
+    play: 'Play',
+    rounds: 'Rounds',
+    more: 'More',
+    setupTitle: 'Player Setup',
+    addPlayersHint: 'Start adding players below',
+    playerName: 'Player Name',
+    enterName: 'Enter player name',
+    startGame: 'Start Game',
+    roundN: 'Round',
+    score: 'Score',
+    total: 'Total',
+    tapToScore: 'Tap a player to enter their score',
+    enterScore: 'Enter score for this round',
+    quickAdd: 'Quick Add',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    endRound: 'End Round',
+    resetGame: 'Reset Game',
+    winner: 'Winner',
+    active: 'Active',
+    out: 'Out',
+    noRounds: 'No rounds yet',
+    startFirst: 'Start a game first to see rounds here',
+    playAgain: 'New Game',
+    gameN: 'Game',
+    language: 'Language',
     aboutMe: 'About Me',
     contact: 'Contact Me',
-    aboutContent: 'Hello! I build modern and beautiful mobile applications.',
-    socialMedia: '@abdu_amigo',
-    gamesPlayed: 'Completed Games',
-    noData: 'No Data',
-    resetGame: 'Reset Game',
-    resetConfirmTitle: 'Clear Results',
-    resetConfirmMessage: 'Are you sure you want to reset the game?',
-    cancel: 'Cancel',
-    confirm: 'Confirm',
-    active: 'Active',
     close: 'Close',
+    aboutContent:
+      'I am Abdullah Ahmed, a Sudanese web and application developer with nine years of comprehensive experience. I specialize in building intelligent solutions powered by AI and Machine Learning.',
+    minPlayers: 'Add at least 2 players to begin',
+    maxScoreLabel: 'Elimination threshold: 31 pts',
+    status: 'Status',
+    resetConfirmTitle: 'Reset Game',
+    resetConfirmMessage: 'Are you sure you want to reset everything?',
+    rules:
+      'Goal: get rid of all your cards by placing them in sets on the table.\n• First play needs 51+ points.\n• A, K, Q, J = 10 points each.\n• Cards 2–10 = face value.\n• Scores can be negative (adding to others\' sets).',
+    activePlayersCount: 'active players',
+    english: 'English',
+    arabic: 'العربية',
   },
 };
 
+// ─── Colours ─────────────────────────────────────────────────────────────────
+const C = {
+  teal: '#1D9E75',
+  tealLight: '#E1F5EE',
+  tealDark: '#0F6E56',
+  amber: '#BA7517',
+  amberLight: '#FAEEDA',
+  red: '#E24B4A',
+  redLight: '#FCEBEB',
+  blue: '#378ADD',
+  bg: '#F4FBF9',
+  white: '#FFFFFF',
+  text: '#1A1A1A',
+  textMuted: '#777',
+  border: '#E0E0E0',
+};
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function makeId() {
+  return Date.now() + Math.random();
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function App() {
-  const [players, setPlayers] = useState([]);
-  const [newPlayerName, setNewPlayerName] = useState('');
-  const [roundScores, setRoundScores] = useState({});
-  const [isGameStarted, setIsGameStarted] = useState(false);
-  const [welcomeDone, setWelcomeDone] = useState(false);   // << NEW welcome screen
-  const [round, setRound] = useState(1);
-  const [winner, setWinner] = useState(null);
+  const [lang, setLangState] = useState('ar');
+  const t = T[lang];
+
+  // Screens: welcome | setup | game | winner
+  const [phase, setPhase] = useState('welcome');
   const [activeTab, setActiveTab] = useState('play');
-  const [language, setLanguage] = useState('ar');
-  const [gameHistory, setGameHistory] = useState([]);
-  const [showLanguageModal, setShowLanguageModal] = useState(false);
-  const [showAboutModal, setShowAboutModal] = useState(false);
-  const [showContactModal, setShowContactModal] = useState(false);
 
-  const t = translations[language];
+  // Players
+  const [players, setPlayers] = useState([]);
+  const [newName, setNewName] = useState('');
+  const nameInputRef = useRef(null);
 
-  const renderWelcomeScreen = () => (
-    <LinearGradient
-      colors={['#0F2027', '#2C5364']}
-      style={styles.welcomeContainer}
-    >
-      <Text style={styles.welcomeEmoji}>🎮</Text>
+  // Game state
+  const [currentRound, setCurrentRound] = useState(1);
+  const [roundScores, setRoundScores] = useState({}); // {id: number}
+  const [currentSession, setCurrentSession] = useState(null);
+  const [allSessions, setAllSessions] = useState([]);
 
-      <Text style={styles.welcomeTitle}>{t.startAppTitle}</Text>
-      <Text style={styles.welcomeSubtitle}>{t.startAppSubtitle}</Text>
+  // Score modal
+  const [scoreModal, setScoreModal] = useState(null); // {playerId}
+  const [modalInput, setModalInput] = useState('');
 
-      <TouchableOpacity
-        style={styles.welcomeButton}
-        onPress={() => setWelcomeDone(true)}
-      >
-        <Text style={styles.welcomeButtonText}>{t.startButton}</Text>
-      </TouchableOpacity>
-    </LinearGradient>
-  );
+  // Other modals
+  const [langModal, setLangModal] = useState(false);
+  const [aboutModal, setAboutModal] = useState(false);
+  const [contactModal, setContactModal] = useState(false);
 
+  const isRTL = lang === 'ar';
+  const dir = isRTL ? 'rtl' : 'ltr';
+
+  // ── Player setup ────────────────────────────────────────────────────────────
   const addPlayer = () => {
-    if (newPlayerName.trim() === '') {
-      Alert.alert('تحذير', 'اسم اللاعب لا يمكن أن يكون فارغاً.');
-      return;
-    }
+    const name = newName.trim();
+    if (!name) return;
     if (players.length >= MAX_PLAYERS) {
-      Alert.alert('عدد كبير جداً من اللاعبين', `يمكنك فقط إضافة حتى ${MAX_PLAYERS} لاعبين.`);
+      Alert.alert('', `Max ${MAX_PLAYERS} players`);
       return;
     }
-    setPlayers([...players, {
-      id: Date.now(),
-      name: newPlayerName,
-      score: 0,
-      isOut: false,
-    }]);
-    setNewPlayerName('');
+    setPlayers(prev => [...prev, { id: makeId(), name, score: 0, isOut: false }]);
+    setNewName('');
+    setTimeout(() => nameInputRef.current?.focus(), 100);
   };
 
+  const removePlayer = id => setPlayers(prev => prev.filter(p => p.id !== id));
+
+  // ── Game flow ────────────────────────────────────────────────────────────────
   const startGame = () => {
-    if (players.length < 2) {
-      Alert.alert('عدد لاعبين قليل', 'الرجاء إضافة لاعبين على الأقل 2.');
-      return;
-    }
+    if (players.length < 2) return;
+    const freshPlayers = players.map(p => ({ ...p, score: 0, isOut: false }));
+    setPlayers(freshPlayers);
+    setCurrentRound(1);
+    setRoundScores({});
+    setCurrentSession({
+      players: JSON.parse(JSON.stringify(freshPlayers)),
+      rounds: [],
+      winner: null,
+    });
+    setPhase('game');
     setActiveTab('play');
-    setIsGameStarted(true);
   };
 
-  const handleScoreChange = (id, value) => {
-    setRoundScores({
-      ...roundScores,
-      [id]: value,
+  const openScoreModal = playerId => {
+    const existing = roundScores[playerId];
+    setModalInput(existing !== undefined ? String(existing) : '');
+    setScoreModal({ playerId });
+  };
+
+  const quickScore = delta => {
+    setModalInput(prev => {
+      const cur = parseInt(prev, 10) || 0;
+      return String(cur + delta);
     });
+  };
+
+  const confirmScore = () => {
+    if (!scoreModal) return;
+    const val = parseInt(modalInput, 10);
+    setRoundScores(prev => ({ ...prev, [scoreModal.playerId]: isNaN(val) ? 0 : val }));
+    setScoreModal(null);
   };
 
   const endRound = () => {
-    // Update all player scores with round scores (can be positive or negative)
-    const updatedPlayers = players.map(player => {
-      const scoreInput = roundScores[player.id] || '0';
-      const scoreToAdd = parseInt(scoreInput, 10);
-      const newTotalScore = player.score + scoreToAdd;
-      
-      return {
-        ...player,
-        score: newTotalScore,
-        isOut: newTotalScore >= MAX_SCORE, // >= instead of > to match the 30 threshold exactly
-      };
-    });
+  const roundRecord = { roundNum: currentRound, scores: {}, totals: {} };
 
-    const activePlayers = updatedPlayers.filter(p => !p.isOut);
+  let eliminatedThisRound = [];
 
-    // Check if only 1 player remains (all others eliminated) - show winner immediately
-    if (activePlayers.length === 1) {
-      // Last player standing is the winner!
-      const winner = activePlayers[0];
-      setPlayers(updatedPlayers);
-      setWinner(winner);
-      
-      // Save game to history
-      const gameResult = {
-        id: Date.now(),
-        date: new Date().toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US'),
-        winner: winner.name,
-        round: round,
-        players: players.length,
-      };
-      setGameHistory([...gameHistory, gameResult]);
-    } else if (activePlayers.length === 0) {
-      // All players are eliminated - find the one with the lowest final score as winner
-      const winner = updatedPlayers.reduce((prev, current) => 
-        prev.score < current.score ? prev : current
-      );
-      setPlayers(updatedPlayers);
-      setWinner(winner);
-      
-      // Save game to history
-      const gameResult = {
-        id: Date.now(),
-        date: new Date().toLocaleDateString(language === 'ar' ? 'ar-SA' : 'en-US'),
-        winner: winner.name,
-        round: round,
-        players: players.length,
-      };
-      setGameHistory([...gameHistory, gameResult]);
-    } else {
-      // Game continues to next round
-      setPlayers(updatedPlayers);
-      setRound(round + 1);
-      setRoundScores({});
+  const updated = players.map(p => {
+    if (p.isOut) {
+      roundRecord.scores[p.id] = 0;
+      roundRecord.totals[p.id] = p.score;
+      return p;
     }
+
+    const add = roundScores[p.id] !== undefined ? parseInt(roundScores[p.id], 10) : 0;
+    const newScore = p.score + (isNaN(add) ? 0 : add);
+
+    roundRecord.scores[p.id] = isNaN(add) ? 0 : add;
+    roundRecord.totals[p.id] = newScore;
+
+    const isOutNow = newScore >= MAX_SCORE;
+
+    if (isOutNow && !p.isOut) {
+      eliminatedThisRound.push(p);
+    }
+
+    return { ...p, score: newScore, isOut: isOutNow };
+  });
+
+  const newSession = {
+    ...currentSession,
+    rounds: [...(currentSession?.rounds || []), roundRecord],
   };
 
-  const resetGame = () => {
-    Alert.alert(
-      t.resetConfirmTitle,
-      t.resetConfirmMessage,
-      [
-        {
-          text: t.cancel,
-          onPress: () => {},
-          style: 'cancel',
+  const stillActive = updated.filter(p => !p.isOut);
+
+  // 🔥 NEW LOGIC: Only end when all but one are eliminated
+  if (stillActive.length === 1) {
+    const winner = stillActive[0];
+
+    const finalSession = { ...newSession, winner };
+    setAllSessions(prev => [...prev, JSON.parse(JSON.stringify(finalSession))]);
+    setCurrentSession(finalSession);
+    setPlayers(updated);
+    setPhase('winner');
+    return;
+  }
+
+  // Continue game normally
+  setCurrentSession(newSession);
+  setPlayers(updated);
+  setCurrentRound(r => r + 1);
+  setRoundScores({});
+};
+
+
+  const confirmReset = () => {
+    Alert.alert(t.resetConfirmTitle, t.resetConfirmMessage, [
+      { text: t.cancel, style: 'cancel' },
+      {
+        text: t.confirm,
+        style: 'destructive',
+        onPress: () => {
+          setPlayers([]);
+          setNewName('');
+          setRoundScores({});
+          setCurrentRound(1);
+          setCurrentSession(null);
+          setPhase('setup');
         },
-        {
-          text: t.confirm,
-          onPress: () => {
-            setPlayers([]);
-            setNewPlayerName('');
-            setRoundScores({});
-            setIsGameStarted(false);
-            setRound(1);
-            setWinner(null);
-          },
-        },
-      ],
-      { cancelable: false }
-    );
+      },
+    ]);
   };
 
-  const restartGame = () => {
+  const startNewGame = () => {
     setPlayers([]);
-    setNewPlayerName('');
+    setNewName('');
     setRoundScores({});
-    setIsGameStarted(false);
-    setRound(1);
-    setWinner(null);
+    setCurrentRound(1);
+    setCurrentSession(null);
+    setPhase('setup');
+    setActiveTab('play');
   };
 
+  // ── Derived ──────────────────────────────────────────────────────────────────
   const activePlayers = players.filter(p => !p.isOut);
-  const losers = players.filter(p => p.isOut);
+  const outPlayers = players.filter(p => p.isOut);
+  const winner = currentSession?.winner;
 
-  // --- Home Tab ---
-  const renderHomeTab = () => (
-    <ScrollView style={styles.tabContent}>
-      <View style={styles.statCard}>
-        <Text style={styles.statIcon}>🎮</Text>
-        <Text style={styles.statLabel}>{t.totalGames}</Text>
-        <Text style={styles.statNumber}>{gameHistory.length}</Text>
-      </View>
+  // ── Rounds data (combine completed sessions + current session if has rounds) ─
+  const roundsSessions = [
+    ...allSessions,
+    ...(currentSession && currentSession.rounds.length > 0 && phase !== 'winner'
+      ? [currentSession]
+      : []),
+  ];
 
-      <Text style={styles.sectionTitle}>{t.gamesPlayed}</Text>
-      {gameHistory.length === 0 ? (
-        <View style={styles.noDataContainer}>
-          <Text style={styles.noDataText}>{t.noData}</Text>
-        </View>
-      ) : (
-        <FlatList
-          scrollEnabled={false}
-          data={gameHistory}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={({ item }) => (
-            <View style={styles.gameHistoryItem}>
-              <View style={styles.historyRow}>
-                <Text style={styles.historyLabel}>{t.winner}:</Text>
-                <Text style={styles.historyValue}>{item.winner}</Text>
-              </View>
-              <View style={styles.historyRow}>
-                <Text style={styles.historyLabel}>{t.round}:</Text>
-                <Text style={styles.historyValue}>{item.round}</Text>
-              </View>
-              <View style={styles.historyRow}>
-                <Text style={styles.historyLabel}>📅</Text>
-                <Text style={styles.historyValue}>{item.date}</Text>
-              </View>
-            </View>
-          )}
-        />
-      )}
-    </ScrollView>
-  );
+  // ════════════════════════════════════════════════════════════════════════════
+  // RENDER SCREENS
+  // ════════════════════════════════════════════════════════════════════════════
 
-  // --- Play Tab ---
-  const renderPlayTab = () => {
-    if (isGameStarted) {
-      return renderGameScreen();
-    }
-
-    if (winner) {
-      return renderWinnerScreen();
-    }
-
-    return renderPlayerSetup();
-  };
-
-  const renderPlayerSetup = () => (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.tabContent}
-    >
-      <ScrollView contentContainerStyle={styles.setupContainer}>
-        {/* Header Section */}
-        <View style={styles.playHeaderSection}>
-          <Text style={styles.playHeaderEmoji}>🎮</Text>
-          <Text style={styles.playHeaderTitle}>{t.startPlay}</Text>
-          <Text style={styles.playHeaderSubtitle}>{t.addMorePlayers}</Text>
-        </View>
-
-        {/* Player Input Section */}
-        <View style={styles.inputSectionContainer}>
-          <Text style={styles.sectionLabel}>{t.playerName}</Text>
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.textInput}
-              placeholder={t.enterName}
-              placeholderTextColor="#bbb"
-              value={newPlayerName}
-              onChangeText={setNewPlayerName}
-            />
-            <TouchableOpacity style={styles.addButton} onPress={addPlayer}>
-              <Text style={styles.buttonText}>+</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Players List Section */}
-        <View style={styles.playersListSectionContainer}>
-          <Text style={styles.sectionLabel}>
-            👥 {players.length}/{MAX_PLAYERS} {t.playerName}
-          </Text>
-          
-          {players.length === 0 ? (
-            <View style={styles.emptyPlayersContainer}>
-              <Text style={styles.emptyPlayersText}>🤔</Text>
-              <Text style={styles.emptyPlayersMessage}>
-                {language === 'ar' ? 'ابدأ بإضافة اللاعبين' : 'Start adding players'}
-              </Text>
-            </View>
-          ) : (
-            <ScrollView style={styles.playerList} scrollEnabled={players.length > 4}>
-              {players.map((player, index) => (
-                <View key={player.id} style={styles.playerItem}>
-                  <View style={styles.playerItemBadge}>
-                    <Text style={styles.playerItemNumber}>{index + 1}</Text>
-                  </View>
-                  <Text style={styles.playerItemName}>{player.name}</Text>
-                  <Text style={styles.playerItemIcon}>✓</Text>
-                </View>
-              ))}
-            </ScrollView>
-          )}
-        </View>
-
-        {/* Start Button */}
-        <TouchableOpacity
-          style={[styles.startGameButton, players.length < 2 && styles.disabledButton]}
-          onPress={startGame}
-          disabled={players.length < 2}
-        >
-          <Text style={styles.buttonText}>
-            {players.length < 2 ? '⚠️' : '▶️'} {t.startGame}
-          </Text>
-        </TouchableOpacity>
-
-        {/* Helper Text */}
-        {players.length < 2 && (
-          <Text style={styles.helperText}>
-            {language === 'ar' ? 'أضف 2 لاعب على الأقل' : 'Add at least 2 players'}
-          </Text>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-
-  const renderGameScreen = () => (
-    <KeyboardAvoidingView
-      style={styles.tabContent}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView>
-        {/* Round Header */}
-        <View style={styles.roundHeader}>
-          <Text style={styles.roundEmoji}>🎯</Text>
-          <Text style={styles.roundTitle}>{t.round} {round}</Text>
-          <Text style={styles.roundSubtitle}>
-            {activePlayers.length} {language === 'ar' ? 'لاعبين نشطين' : 'active players'}
-          </Text>
-        </View>
-
-        {/* Active Players Section */}
-        <View style={styles.gameContentSection}>
-          <Text style={styles.sectionLabel}>🏃 {t.active}</Text>
-          <View style={styles.activePlayersList}>
-            {activePlayers.map((player, index) => (
-              <View key={player.id} style={styles.playerRow}>
-                <View style={styles.playerInfo}>
-                  <View style={styles.playerRankBadge}>
-                    <Text style={styles.playerRankText}>{index + 1}</Text>
-                  </View>
-                  <View style={styles.playerDetails}>
-                    <Text style={styles.playerName}>{player.name}</Text>
-                    <Text style={styles.playerCurrentScore}>
-                      {t.score}: {player.score}
-                    </Text>
-                  </View>
-                </View>
-                <TextInput
-                  style={[
-                    styles.scoreInput,
-                    { borderColor: parseInt(roundScores[player.id] || 0) < 0 ? '#e74c3c' : '#3da49d' }
-                  ]}
-                  placeholder="0"
-                  placeholderTextColor="#ccc"
-                  keyboardType="numeric"
-                  value={roundScores[player.id]}
-                  onChangeText={(text) => handleScoreChange(player.id, text)}
-                />
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Eliminated Players Section */}
-        {losers.length > 0 && (
-          <View style={styles.gameContentSection}>
-            <Text style={styles.sectionLabel}>❌ {t.loser} ({losers.length})</Text>
-            <View style={styles.loserPanel}>
-              {losers.map((player) => (
-                <View key={player.id} style={styles.loserItem}>
-                  <Text style={styles.loserName}>{player.name}</Text>
-                  <Text style={styles.loserScore}>{player.score}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* Action Buttons */}
-        <View style={styles.gameButtonsContainer}>
-          <TouchableOpacity style={styles.endRoundButton} onPress={endRound}>
-            <Text style={styles.buttonText}>✓ {t.endRound}</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity style={styles.resetGameButton} onPress={resetGame}>
-            <Text style={styles.buttonText}>🔄 {t.resetGame}</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
-  );
-
-  const renderWinnerScreen = () => (
-    <View style={styles.tabContent}>
-      <ScrollView contentContainerStyle={styles.winnerScrollContent}>
-        <View style={styles.winnerContainer}>
-          {/* Crown and Celebration */}
-          <Text style={styles.crownEmoji}>👑</Text>
-          <Text style={styles.winnerEmoji}>🎉</Text>
-          
-          {/* Winner Title */}
-          <Text style={styles.winnerTitle}>{t.winner}! 🏆</Text>
-          
-          {/* Winner Name with special styling */}
-          <View style={styles.winnerNameContainer}>
-            <Text style={styles.winnerName}>{winner?.name}</Text>
-          </View>
-
-          {/* Game Stats */}
-          <View style={styles.gameStatsContainer}>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>{t.round}</Text>
-              <Text style={styles.statValue}>{round}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>{t.score}</Text>
-              <Text style={styles.statValue}>{winner?.score}</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={styles.statLabel}>👥</Text>
-              <Text style={styles.statValue}>{players.length}</Text>
-            </View>
-          </View>
-
-          {/* Celebration Effects */}
-          <View style={styles.celebrationContainer}>
-            <Text style={styles.confetti}>✨ ✨ ✨</Text>
-            <Text style={styles.confetti}>🎊 🎊 🎊</Text>
-            <Text style={styles.confetti}>✨ ✨ ✨</Text>
-          </View>
-          
-          {/* Action Buttons */}
-          <View style={styles.winnerButtonsContainer}>
-            <TouchableOpacity style={styles.playAgainButton} onPress={restartGame}>
-              <Text style={styles.buttonText}>🔄 {t.startGame}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.backMoreButton} onPress={() => {
-              setActiveTab('more');
-              resetGame();
-            }}>
-              <Text style={styles.buttonText}>⋯ {t.more}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </ScrollView>
+  const renderWelcome = () => (
+    <View style={[styles.welcome, { backgroundColor: '#0F2027' }]}>
+      <Text style={styles.welcomeEmoji}>🎮</Text>
+      <Text style={styles.welcomeTitle}>{t.appName}</Text>
+      <Text style={styles.welcomeSubtitle}>{t.subtitle}</Text>
+      <TouchableOpacity style={styles.btnPrimary} onPress={() => setPhase('setup')}>
+        <Text style={styles.btnPrimaryText}>▶  {t.start}</Text>
+      </TouchableOpacity>
     </View>
   );
 
-  // --- More Tab ---
+  const renderSetup = () => (
+    <KeyboardAvoidingView
+      style={{ flex: 1 }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={80}>
+      <ScrollView
+        style={styles.screen}
+        contentContainerStyle={styles.setupContent}
+        keyboardShouldPersistTaps="handled">
+        {/* Header */}
+        <View style={styles.setupHeader}>
+          <Text style={styles.setupTitle}>🎮 {t.setupTitle}</Text>
+          <Text style={styles.setupSub}>{t.maxScoreLabel}</Text>
+        </View>
+
+        {/* Rules box */}
+        <View style={styles.rulesBox}>
+          <Text style={[styles.rulesText, isRTL && { textAlign: 'right' }]}>{t.rules}</Text>
+        </View>
+
+        {/* Input row */}
+        <Text style={[styles.sectionLabel, isRTL && { textAlign: 'right' }]}>
+          {t.playerName}  ({players.length}/{MAX_PLAYERS})
+        </Text>
+        <View style={[styles.inputRow, isRTL && { flexDirection: 'row-reverse' }]}>
+          <TextInput
+            ref={nameInputRef}
+            style={[styles.nameInput, isRTL && { textAlign: 'right' }]}
+            placeholder={t.enterName}
+            placeholderTextColor={C.textMuted}
+            value={newName}
+            onChangeText={setNewName}
+            onSubmitEditing={addPlayer}
+            returnKeyType="done"
+            blurOnSubmit={false}
+          />
+          <TouchableOpacity style={styles.addBtn} onPress={addPlayer}>
+            <Text style={styles.addBtnText}>+</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Player list */}
+        {players.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyText}>🤔  {t.addPlayersHint}</Text>
+          </View>
+        ) : (
+          players.map((p, i) => (
+            <View
+              key={p.id}
+              style={[styles.playerChip, isRTL && { flexDirection: 'row-reverse' }]}>
+              <View style={styles.playerChipNum}>
+                <Text style={styles.playerChipNumText}>{i + 1}</Text>
+              </View>
+              <Text style={[styles.playerChipName, isRTL && { textAlign: 'right' }]}>
+                {p.name}
+              </Text>
+              <TouchableOpacity onPress={() => removePlayer(p.id)}>
+                <Text style={styles.playerChipDel}>×</Text>
+              </TouchableOpacity>
+            </View>
+          ))
+        )}
+
+        {/* Start button */}
+        <TouchableOpacity
+          style={[styles.btnPrimary, players.length < 2 && styles.btnDisabled, { marginTop: 24 }]}
+          onPress={startGame}
+          disabled={players.length < 2}>
+          <Text style={styles.btnPrimaryText}>▶  {t.startGame}</Text>
+        </TouchableOpacity>
+        {players.length < 2 && (
+          <Text style={styles.helperText}>{t.minPlayers}</Text>
+        )}
+      </ScrollView>
+    </KeyboardAvoidingView>
+  );
+
+  const renderGame = () => (
+    <ScrollView style={styles.screen} keyboardShouldPersistTaps="handled">
+      {/* Round header */}
+      <View style={styles.roundHeader}>
+        <Text style={styles.roundHeaderTitle}>🎯  {t.roundN} {currentRound}</Text>
+        <Text style={styles.roundHeaderSub}>
+          {activePlayers.length} {t.activePlayersCount}
+        </Text>
+      </View>
+
+      <View style={styles.gameBody}>
+        <Text style={[styles.tapHint, isRTL && { textAlign: 'right' }]}>
+          👆  {t.tapToScore}
+        </Text>
+
+        {/* Active players */}
+        {activePlayers.map((p, i) => {
+          const rs = roundScores[p.id];
+          const hasScore = rs !== undefined;
+          const scoreVal = hasScore ? parseInt(rs, 10) : null;
+          return (
+            <TouchableOpacity
+              key={p.id}
+              style={[styles.playerGameRow, isRTL && { flexDirection: 'row-reverse' }]}
+              activeOpacity={0.7}
+              onPress={() => openScoreModal(p.id)}>
+              <View style={styles.playerGameRank}>
+                <Text style={styles.playerGameRankText}>{i + 1}</Text>
+              </View>
+              <View style={[styles.playerGameInfo, isRTL && { alignItems: 'flex-end' }]}>
+                <Text style={styles.playerGameName}>{p.name}</Text>
+                <Text style={styles.playerGameTotal}>
+                  {t.total}: {p.score}
+                </Text>
+              </View>
+              <Text
+                style={[
+                  styles.playerGameScore,
+                  scoreVal !== null && scoreVal < 0 && { color: C.teal },
+                  scoreVal !== null && scoreVal > 0 && { color: C.red },
+                ]}>
+                {hasScore
+                  ? scoreVal > 0
+                    ? `+${scoreVal}`
+                    : String(scoreVal)
+                  : '—'}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+
+        {/* Eliminated */}
+        {outPlayers.length > 0 && (
+          <View style={{ marginTop: 16 }}>
+            <Text style={[styles.sectionLabel, isRTL && { textAlign: 'right' }]}>
+              ❌  {t.out}
+            </Text>
+            {outPlayers.map(p => (
+              <View
+                key={p.id}
+                style={[styles.playerGameRow, styles.playerGameRowOut, isRTL && { flexDirection: 'row-reverse' }]}>
+                <View style={[styles.playerGameRank, { backgroundColor: '#ccc' }]}>
+                  <Text style={styles.playerGameRankText}>✕</Text>
+                </View>
+                <View style={[styles.playerGameInfo, isRTL && { alignItems: 'flex-end' }]}>
+                  <Text style={[styles.playerGameName, { color: C.textMuted }]}>
+                    {p.name}
+                  </Text>
+                  <Text style={styles.playerGameTotal}>{t.total}: {p.score}</Text>
+                </View>
+                <Text style={[styles.playerGameScore, { color: C.red }]}>{p.score}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+
+        {/* Actions */}
+        <TouchableOpacity style={[styles.btnPrimary, { marginTop: 24 }]} onPress={endRound}>
+          <Text style={styles.btnPrimaryText}>✓  {t.endRound}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.btnAmber, { marginTop: 10 }]}
+          onPress={confirmReset}>
+          <Text style={styles.btnPrimaryText}>🔄  {t.resetGame}</Text>
+        </TouchableOpacity>
+      </View>
+    </ScrollView>
+  );
+
+  const renderWinner = () => (
+    <ScrollView style={styles.screen} contentContainerStyle={styles.winnerContent}>
+      <Text style={styles.winnerCrown}>👑</Text>
+      <Text style={styles.winnerLabel}>{t.winner}!</Text>
+      <View style={styles.winnerNameBox}>
+        <Text style={styles.winnerName}>{winner?.name}</Text>
+      </View>
+      <View style={styles.winnerStats}>
+        <View style={styles.winnerStat}>
+          <Text style={styles.winnerStatVal}>{currentSession?.rounds?.length ?? 0}</Text>
+          <Text style={styles.winnerStatLbl}>{t.roundN}s</Text>
+        </View>
+        <View style={styles.winnerStat}>
+          <Text style={styles.winnerStatVal}>{winner?.score}</Text>
+          <Text style={styles.winnerStatLbl}>{t.score}</Text>
+        </View>
+        <View style={styles.winnerStat}>
+          <Text style={styles.winnerStatVal}>{players.length}</Text>
+          <Text style={styles.winnerStatLbl}>👥</Text>
+        </View>
+      </View>
+      <Text style={styles.confetti}>✨ 🎉 ✨</Text>
+      <Text style={styles.confetti}>🎊 🏆 🎊</Text>
+      <TouchableOpacity style={[styles.btnPrimary, { marginTop: 28, width: '100%' }]} onPress={startNewGame}>
+        <Text style={styles.btnPrimaryText}>🔄  {t.playAgain}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[styles.btnOutline, { marginTop: 10, width: '100%' }]}
+        onPress={() => setActiveTab('rounds')}>
+        <Text style={styles.btnOutlineText}>📋  {t.rounds}</Text>
+      </TouchableOpacity>
+    </ScrollView>
+  );
+
+  // ── Rounds Tab ──────────────────────────────────────────────────────────────
+  const renderRoundsTab = () => {
+    if (roundsSessions.length === 0 && !(currentSession?.rounds?.length)) {
+      return (
+        <View style={styles.noDataBox}>
+          <Text style={styles.noDataEmoji}>📋</Text>
+          <Text style={styles.noDataTitle}>{t.noRounds}</Text>
+          <Text style={styles.noDataSub}>{t.startFirst}</Text>
+        </View>
+      );
+    }
+
+    const sessions = roundsSessions.length > 0 ? roundsSessions : [];
+
+    return (
+      <ScrollView style={styles.screen} horizontal={false}>
+        {sessions.map((sess, si) => {
+          if (!sess.rounds.length) return null;
+          return (
+            <View key={si} style={styles.sessionBlock}>
+              <Text style={[styles.sessionTitle, isRTL && { textAlign: 'right' }]}>
+                🎮 {t.gameN} {si + 1}
+                {sess.winner ? `  ·  👑 ${sess.winner.name}` : ''}
+              </Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator>
+                <View>
+                  {/* Header row */}
+                  <View style={[styles.tableRow, styles.tableHeaderRow, isRTL && { flexDirection: 'row-reverse' }]}>
+                    <Text style={[styles.thName]}>{t.playerName}</Text>
+                    {sess.rounds.map(r => (
+                      <Text key={r.roundNum} style={styles.thRound}>
+                        {t.roundN} {r.roundNum}
+                      </Text>
+                    ))}
+                    <Text style={styles.thTotal}>{t.total}</Text>
+                    <Text style={styles.thStatus}>{t.status}</Text>
+                  </View>
+
+                  {/* Player rows */}
+                  {sess.players.map(p => {
+                    const lastRound = sess.rounds[sess.rounds.length - 1];
+                    const finalTotal = lastRound?.totals[p.id] ?? 0;
+                    const isWinner = sess.winner?.id === p.id;
+                    const isOut = finalTotal >= MAX_SCORE && !isWinner;
+
+                    return (
+                      <View
+                        key={p.id}
+                        style={[
+                          styles.tableRow,
+                          isWinner && styles.tableRowWinner,
+                          isOut && styles.tableRowOut,
+                          isRTL && { flexDirection: 'row-reverse' },
+                        ]}>
+                        <Text
+                          style={[
+                            styles.tdName,
+                            isWinner && { color: C.amber },
+                            isOut && { color: C.red },
+                          ]}
+                          numberOfLines={1}>
+                          {p.name}
+                        </Text>
+                        {sess.rounds.map(r => {
+                          const s = r.scores[p.id] !== undefined ? r.scores[p.id] : 0;
+                          return (
+                            <Text
+                              key={r.roundNum}
+                              style={[
+                                styles.tdRound,
+                                s < 0 && { color: C.teal },
+                                s > 0 && { color: C.red },
+                              ]}>
+                              {s > 0 ? `+${s}` : String(s)}
+                            </Text>
+                          );
+                        })}
+                        <Text
+                          style={[
+                            styles.tdTotal,
+                            isWinner && { color: C.amber },
+                            isOut && { color: C.red },
+                          ]}>
+                          {finalTotal}
+                        </Text>
+                        <Text style={styles.tdStatus}>
+                          {isWinner ? '👑' : isOut ? '❌' : '✅'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </View>
+              </ScrollView>
+            </View>
+          );
+        })}
+      </ScrollView>
+    );
+  };
+
+  // ── More Tab ────────────────────────────────────────────────────────────────
   const renderMoreTab = () => (
-    <ScrollView style={styles.tabContent} contentContainerStyle={styles.moreTabContainer}>
-      {/* Header */}
-      <View style={styles.moreHeaderSection}>
+    <ScrollView style={styles.screen} contentContainerStyle={{ paddingBottom: 40 }}>
+      <View style={styles.moreHeader}>
         <Text style={styles.moreHeaderEmoji}>⚙️</Text>
         <Text style={styles.moreHeaderTitle}>{t.more}</Text>
       </View>
 
-      {/* Menu Items */}
-      <View style={styles.moreMenuContainer}>
+      {[
+        {
+          icon: '🌐',
+          title: t.language,
+          sub: lang === 'ar' ? '🇸🇦 العربية' : '🇺🇸 English',
+          onPress: () => setLangModal(true),
+        },
+        {
+          icon: '👤',
+          title: t.aboutMe,
+          sub: lang === 'ar' ? 'عن المطور' : 'About Developer',
+          onPress: () => setAboutModal(true),
+        },
+        {
+          icon: '📱',
+          title: t.contact,
+          sub: '@abdu_amigo',
+          onPress: () => setContactModal(true),
+        },
+      ].map((item, i) => (
         <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => setShowLanguageModal(true)}
+          key={i}
+          style={[styles.menuItem, isRTL && { flexDirection: 'row-reverse' }]}
           activeOpacity={0.7}
-        >
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>🌐</Text>
-            <View>
-              <Text style={styles.menuText}>{t.language}</Text>
-              <Text style={styles.menuSubtext}>
-                {language === 'ar' ? '🇸🇦 العربية' : '🇺🇸 English'}
-              </Text>
-            </View>
+          onPress={item.onPress}>
+          <Text style={styles.menuIcon}>{item.icon}</Text>
+          <View style={styles.menuInfo}>
+            <Text style={[styles.menuTitle, isRTL && { textAlign: 'right' }]}>{item.title}</Text>
+            <Text style={[styles.menuSub, isRTL && { textAlign: 'right' }]}>{item.sub}</Text>
           </View>
           <Text style={styles.menuArrow}>›</Text>
         </TouchableOpacity>
+      ))}
 
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => setShowAboutModal(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>👤</Text>
-            <View>
-              <Text style={styles.menuText}>{t.aboutMe}</Text>
-              <Text style={styles.menuSubtext}>
-                {language === 'ar' ? 'عن المطور' : 'About Developer'}
-              </Text>
-            </View>
-          </View>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => setShowContactModal(true)}
-          activeOpacity={0.7}
-        >
-          <View style={styles.menuItemLeft}>
-            <Text style={styles.menuIcon}>📱</Text>
-            <View>
-              <Text style={styles.menuText}>{t.contact}</Text>
-              <Text style={styles.menuSubtext}>@abdu_amigo</Text>
-            </View>
-          </View>
-          <Text style={styles.menuArrow}>›</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* App Info */}
-      <View style={styles.appInfoSection}>
-        <Text style={styles.appInfoEmoji}>🎮</Text>
+      <View style={styles.appInfoBox}>
+        <Text style={{ fontSize: 36 }}>🎮</Text>
         <Text style={styles.appInfoTitle}>Score Tracker</Text>
         <Text style={styles.appInfoVersion}>v2.0</Text>
       </View>
     </ScrollView>
   );
 
-  // --- Modals ---
-  const renderLanguageModal = () => (
-    <Modal visible={showLanguageModal} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { direction: language === 'ar' ? 'rtl' : 'ltr' }]}>
-          <Text style={styles.modalTitle}>{t.language}</Text>
-          
+  // ── Score Modal (bottom sheet) ───────────────────────────────────────────────
+  const renderScoreModal = () => {
+    const player = players.find(p => p.id === scoreModal?.playerId);
+    if (!player) return null;
+    return (
+      <Modal
+        visible={!!scoreModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setScoreModal(null)}>
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setScoreModal(null)}>
           <TouchableOpacity
-            style={styles.languageOption}
-            onPress={() => {
-              setLanguage('ar');
-              setShowLanguageModal(false);
-            }}
-          >
-            <Text style={styles.languageText}>🇸🇦 {t.arabic}</Text>
-          </TouchableOpacity>
+            activeOpacity={1}
+            style={styles.bottomSheet}
+            onPress={e => e.stopPropagation()}>
+            <View style={styles.sheetHandle} />
+            <Text style={[styles.sheetTitle, isRTL && { textAlign: 'right' }]}>
+              {player.name}
+            </Text>
+            <Text style={[styles.sheetSub, isRTL && { textAlign: 'right' }]}>
+              {t.enterScore}  ({t.total}: {player.score})
+            </Text>
 
-          <TouchableOpacity
-            style={styles.languageOption}
-            onPress={() => {
-              setLanguage('en');
-              setShowLanguageModal(false);
-            }}
-          >
-            <Text style={styles.languageText}>🇺🇸 {t.english}</Text>
-          </TouchableOpacity>
+            {/* Big number input — no inline in list so no blink */}
+            <TextInput
+              style={styles.bigScoreInput}
+              keyboardType="numeric"
+              value={modalInput}
+              onChangeText={setModalInput}
+              placeholder="0"
+              placeholderTextColor={C.textMuted}
+              autoFocus
+              selectTextOnFocus
+            />
 
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowLanguageModal(false)}
-          >
-            <Text style={styles.closeButtonText}>{t.close}</Text>
+            {/* Quick buttons */}
+            <Text style={[styles.sectionLabel, { marginBottom: 6 }, isRTL && { textAlign: 'right' }]}>
+              {t.quickAdd}
+            </Text>
+            <View style={styles.quickRow}>
+              {[1, 2, 3, 5, 7, 10].map(v => (
+                <TouchableOpacity
+                  key={v}
+                  style={styles.quickBtnPos}
+                  onPress={() => quickScore(v)}>
+                  <Text style={styles.quickBtnPosText}>+{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.quickRow}>
+              {[-1, -2, -3, -5, -10].map(v => (
+                <TouchableOpacity
+                  key={v}
+                  style={styles.quickBtnNeg}
+                  onPress={() => quickScore(v)}>
+                  <Text style={styles.quickBtnNegText}>{v}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            {/* Actions */}
+            <View style={[styles.sheetActions, isRTL && { flexDirection: 'row-reverse' }]}>
+              <TouchableOpacity
+                style={styles.btnCancel}
+                onPress={() => setScoreModal(null)}>
+                <Text style={styles.btnCancelText}>{t.cancel}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnPrimary} onPress={confirmScore}>
+                <Text style={styles.btnPrimaryText}>{t.confirm}</Text>
+              </TouchableOpacity>
+            </View>
           </TouchableOpacity>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </Modal>
+    );
+  };
+
+  // ── Language Modal ───────────────────────────────────────────────────────────
+  const renderLangModal = () => (
+    <Modal visible={langModal} transparent animationType="fade" onRequestClose={() => setLangModal(false)}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setLangModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.centeredModal} onPress={e => e.stopPropagation()}>
+          <Text style={styles.centeredModalTitle}>{t.language}</Text>
+          {[
+            { code: 'ar', flag: '🇸🇦', label: 'العربية' },
+            { code: 'en', flag: '🇺🇸', label: 'English' },
+          ].map(opt => (
+            <TouchableOpacity
+              key={opt.code}
+              style={[styles.langOption, lang === opt.code && styles.langOptionActive]}
+              onPress={() => { setLangState(opt.code); setLangModal(false); }}>
+              <Text style={styles.langOptionText}>{opt.flag}  {opt.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={[styles.btnPrimary, { marginTop: 8 }]} onPress={() => setLangModal(false)}>
+            <Text style={styles.btnPrimaryText}>{t.close}</Text>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 
+  // ── About Modal ──────────────────────────────────────────────────────────────
   const renderAboutModal = () => (
-    <Modal visible={showAboutModal} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { direction: language === 'ar' ? 'rtl' : 'ltr' }]}>
-          <Text style={styles.modalTitle}>{t.aboutMe}</Text>
-          <Text style={styles.aboutText}>{t.aboutContent}</Text>
-          
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowAboutModal(false)}
-          >
-            <Text style={styles.closeButtonText}>{t.close}</Text>
+    <Modal visible={aboutModal} transparent animationType="fade" onRequestClose={() => setAboutModal(false)}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setAboutModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.centeredModal} onPress={e => e.stopPropagation()}>
+          <Text style={styles.centeredModalTitle}>{t.aboutMe}</Text>
+          <Text style={[styles.aboutText, isRTL && { textAlign: 'right' }]}>{t.aboutContent}</Text>
+          <TouchableOpacity style={styles.btnPrimary} onPress={() => setAboutModal(false)}>
+            <Text style={styles.btnPrimaryText}>{t.close}</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
+
+  // ── Contact Modal ────────────────────────────────────────────────────────────
+  const contactLinks = [
+    { icon: '𝕏', label: 'X / Twitter', url: 'https://x.com/abdu_amigo' },
+    { icon: 'ⓕ', label: 'Facebook', url: 'https://facebook.com/abduamigo90' },
+    { icon: '[in]', label: 'LinkedIn', url: 'https://linkedin.com/in/abduamigo' },
+    { icon: '🔗', label: 'GitHub', url: 'https://github.com/abduAmigo' },
+    { icon: '🌐', label: 'asserai.com', url: 'https://asserai.com' },
+    { icon: '✉️', label: 'me@asserai.com', url: 'mailto:me@asserai.com' },
+  ];
 
   const renderContactModal = () => (
-    <Modal visible={showContactModal} transparent animationType="fade">
-      <View style={styles.modalOverlay}>
-        <View style={[styles.modalContent, { direction: language === 'ar' ? 'rtl' : 'ltr' }]}>
-          <Text style={styles.modalTitle}>{t.contact}</Text>
-          <View style={styles.contactItem}>
-            <Text style={styles.contactIcon}>📱</Text>
-            <Text style={styles.contactText}>{t.socialMedia}</Text>
-          </View>
-          
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => setShowContactModal(false)}
-          >
-            <Text style={styles.closeButtonText}>{t.close}</Text>
+    <Modal visible={contactModal} transparent animationType="fade" onRequestClose={() => setContactModal(false)}>
+      <TouchableOpacity style={styles.modalOverlay} activeOpacity={1} onPress={() => setContactModal(false)}>
+        <TouchableOpacity activeOpacity={1} style={styles.centeredModal} onPress={e => e.stopPropagation()}>
+          <Text style={styles.centeredModalTitle}>{t.contact}</Text>
+          {contactLinks.map(l => (
+            <TouchableOpacity
+              key={l.label}
+              style={[styles.contactRow, isRTL && { flexDirection: 'row-reverse' }]}
+              onPress={() =>
+                Linking.canOpenURL(l.url).then(ok => {
+                  if (ok) Linking.openURL(l.url);
+                })
+              }>
+              <Text style={styles.contactIcon}>{l.icon}</Text>
+              <Text style={styles.contactLabel}>{l.label}</Text>
+            </TouchableOpacity>
+          ))}
+          <TouchableOpacity style={[styles.btnPrimary, { marginTop: 12 }]} onPress={() => setContactModal(false)}>
+            <Text style={styles.btnPrimaryText}>{t.close}</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
-  
-  
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // ROOT RENDER
+  // ════════════════════════════════════════════════════════════════════════════
+  if (phase === 'welcome') {
+    return (
+      <SafeAreaView style={[styles.safeArea, { backgroundColor: '#0F2027' }]}>
+        {renderWelcome()}
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <SafeAreaView style={[styles.safeArea, { direction: language === 'ar' ? 'rtl' : 'ltr' }]}>
-      <View style={styles.tabsContainer}>
-        {/* Tabs Content */}
-        {activeTab === 'play' && renderPlayTab()}
+    <SafeAreaView style={styles.safeArea}>
+      {/* Main content */}
+      <View style={{ flex: 1 }}>
+        {activeTab === 'play' && phase === 'setup' && renderSetup()}
+        {activeTab === 'play' && phase === 'game' && renderGame()}
+        {activeTab === 'play' && phase === 'winner' && renderWinner()}
+        {activeTab === 'rounds' && renderRoundsTab()}
         {activeTab === 'more' && renderMoreTab()}
-
-        {/* Language Modal */}
-        {renderLanguageModal()}
-
-        {/* About Modal */}
-        {renderAboutModal()}
-
-        {/* Contact Modal */}
-        {renderContactModal()}
       </View>
 
-      {/* Tab Navigation - Only Play and More */}
-      <View style={styles.tabNavigation}>
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'play' && styles.activeTabButton]}
-          onPress={() => setActiveTab('play')}
-        >
-          <Text style={styles.tabIcon}>🎮</Text>
-          <Text style={[styles.tabLabel, activeTab === 'play' && styles.activeTabLabel]}>
-            {t.play}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.tabButton, activeTab === 'more' && styles.activeTabButton]}
-          onPress={() => setActiveTab('more')}
-        >
-          <Text style={styles.tabIcon}>⋯</Text>
-          <Text style={[styles.tabLabel, activeTab === 'more' && styles.activeTabLabel]}>
-            {t.more}
-          </Text>
-        </TouchableOpacity>
+      {/* Tab bar */}
+      <View style={[styles.tabBar, isRTL && { flexDirection: 'row-reverse' }]}>
+        {[
+          { id: 'play', icon: '🎮', label: t.play },
+          { id: 'rounds', icon: '📋', label: t.rounds },
+          { id: 'more', icon: '⋯', label: t.more },
+        ].map(tab => (
+          <TouchableOpacity
+            key={tab.id}
+            style={[styles.tabBtn, activeTab === tab.id && styles.tabBtnActive]}
+            onPress={() => setActiveTab(tab.id)}>
+            <Text style={styles.tabIcon}>{tab.icon}</Text>
+            <Text style={[styles.tabLabel, activeTab === tab.id && styles.tabLabelActive]}>
+              {tab.label}
+            </Text>
+          </TouchableOpacity>
+        ))}
       </View>
+
+      {/* Modals */}
+      {renderScoreModal()}
+      {renderLangModal()}
+      {renderAboutModal()}
+      {renderContactModal()}
     </SafeAreaView>
   );
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// STYLES
+// ═══════════════════════════════════════════════════════════════════════════════
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: '#f0fffe',
+    backgroundColor: C.bg,
   },
-  tabsContainer: {
+  screen: {
     flex: 1,
-  },
-  tabContent: {
-    flex: 1,
-  },
-  
-  // Home Tab
-  statCard: {
-    backgroundColor: '#fff',
-    borderRadius: 15,
-    padding: 25,
-    alignItems: 'center',
-    margin: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  statIcon: {
-    fontSize: 50,
-    marginBottom: 10,
-  },
-  statLabel: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 10,
-  },
-  statNumber: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#3da49d',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    marginLeft: 20,
-    marginTop: 10,
-    marginBottom: 10,
-    color: '#333',
-  },
-  gameHistoryItem: {
-    backgroundColor: '#fff',
-    marginHorizontal: 20,
-    marginVertical: 8,
-    padding: 15,
-    borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3da49d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  historyRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginVertical: 5,
-  },
-  historyLabel: {
-    fontSize: 14,
-    color: '#666',
-    fontWeight: '500',
-  },
-  historyValue: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  noDataContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
-  },
-  noDataText: {
-    fontSize: 16,
-    color: '#999',
   },
 
-  // Play Tab
-  setupContainer: {
-    padding: 20,
-    paddingBottom: 100,
-    flexGrow: 1,
-  },
-  playHeaderSection: {
-    alignItems: 'center',
-    marginBottom: 35,
-    paddingTop: 10,
-  },
-  playHeaderEmoji: {
-    fontSize: 50,
-    marginBottom: 10,
-  },
-  playHeaderTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  playHeaderSubtitle: {
-    fontSize: 14,
-    color: '#999',
-  },
-  playHeader: {
-    alignItems: 'center',
-    marginBottom: 30,
-  },
-  playTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 5,
-  },
-  playSubtitle: {
-    fontSize: 14,
-    color: '#999',
-  },
-  inputSectionContainer: {
-    marginBottom: 25,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#555',
-    marginBottom: 10,
-    paddingHorizontal: 5,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    marginBottom: 20,
-    gap: 10,
-  },
-  textInput: {
+  // ── Welcome ──────────────────────────────────────────────────────────────────
+  welcome: {
     flex: 1,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 14,
-    fontSize: 16,
-    color: '#333',
-  },
-  addButton: {
-    backgroundColor: '#ffbf38',
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#ffbf38',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
-  playersListSectionContainer: {
-    marginBottom: 30,
-  },
-  emptyPlayersContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 40,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: '#e0e0e0',
-    borderStyle: 'dashed',
+    padding: 32,
   },
-  emptyPlayersText: {
-    fontSize: 40,
-    marginBottom: 10,
-  },
-  emptyPlayersMessage: {
-    fontSize: 14,
-    color: '#999',
-  },
-  playerList: {
-    marginBottom: 20,
-  },
-  playerItem: {
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderLeftWidth: 4,
-    borderLeftColor: '#3da49d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  playerItemBadge: {
-    backgroundColor: '#3da49d',
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 15,
-  },
-  playerItemNumber: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  playerItemName: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    flex: 1,
-  },
-  playerItemIcon: {
-    fontSize: 16,
-    color: '#ffbf38',
-    fontWeight: 'bold',
-  },
-  playerNumber: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#3498db',
-    marginRight: 15,
-    minWidth: 30,
-  },
-  playerName: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-    flex: 1,
-  },
-  startGameButton: {
-    backgroundColor: '#3da49d',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
+  welcomeEmoji: { fontSize: 56, marginBottom: 16 },
+  welcomeTitle: { fontSize: 28, fontWeight: '600', color: '#fff', marginBottom: 8 },
+  welcomeSubtitle: { fontSize: 14, color: 'rgba(255,255,255,0.6)', marginBottom: 40, textAlign: 'center' },
+
+  // ── Buttons ──────────────────────────────────────────────────────────────────
+  btnPrimary: {
+    backgroundColor: C.teal,
     borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
     alignItems: 'center',
-    marginTop: 20,
-    marginBottom: 15,
-    shadowColor: '#3da49d',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
   },
-  disabledButton: {
-    backgroundColor: '#bdc3c7',
-    opacity: 0.7,
+  btnPrimaryText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  btnDisabled: { backgroundColor: '#ccc' },
+  btnAmber: {
+    backgroundColor: C.amber,
+    borderRadius: 28,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
   },
-  helperText: {
-    textAlign: 'center',
-    color: '#e74c3c',
-    fontSize: 12,
-    marginTop: 5,
-    fontWeight: '500',
+  btnOutline: {
+    borderRadius: 28,
+    borderWidth: 1.5,
+    borderColor: C.teal,
+    paddingVertical: 14,
+    paddingHorizontal: 32,
+    alignItems: 'center',
   },
+  btnOutlineText: { color: C.teal, fontSize: 16, fontWeight: '600' },
+  btnCancel: {
+    flex: 1,
+    backgroundColor: '#eee',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  btnCancelText: { color: C.textMuted, fontSize: 15, fontWeight: '500' },
 
-  // Game Screen
-  roundHeader: {
-    alignItems: 'center',
-    paddingVertical: 25,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    marginBottom: 0,
-    borderBottomWidth: 2,
-    borderBottomColor: '#3da49d',
+  // ── Setup ─────────────────────────────────────────────────────────────────────
+  setupContent: { padding: 20, paddingBottom: 60 },
+  setupHeader: { alignItems: 'center', marginBottom: 20 },
+  setupTitle: { fontSize: 22, fontWeight: '600', color: C.text },
+  setupSub: { fontSize: 13, color: C.textMuted, marginTop: 4 },
+  rulesBox: {
+    backgroundColor: C.tealLight,
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 20,
   },
-  roundEmoji: {
-    fontSize: 40,
+  rulesText: { fontSize: 13, color: C.tealDark, lineHeight: 20 },
+  sectionLabel: { fontSize: 12, fontWeight: '600', color: C.textMuted, marginBottom: 8, letterSpacing: 0.4 },
+  inputRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  nameInput: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: C.border,
+    borderRadius: 10,
+    padding: 12,
+    fontSize: 15,
+    color: C.text,
+    backgroundColor: C.white,
+  },
+  addBtn: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: C.amber,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addBtnText: { color: '#fff', fontSize: 24, fontWeight: '600', lineHeight: 28 },
+  emptyBox: {
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: C.border,
+    borderRadius: 10,
+    padding: 32,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  emptyText: { color: C.textMuted, fontSize: 14 },
+  playerChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: C.tealLight,
+    borderRadius: 10,
+    padding: 12,
     marginBottom: 8,
   },
-  roundTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  roundSubtitle: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 5,
-  },
-  gameContentSection: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-    marginTop: 20,
-  },
-  activePlayersList: {
-    marginTop: 10,
-  },
-  playerRankBadge: {
-    backgroundColor: '#3da49d',
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
+  playerChipNum: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: C.teal,
     alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 12,
   },
-  playerRankText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-  playerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 12,
-    marginBottom: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3da49d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  playerInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  playerDetails: {
-    marginLeft: 5,
-  },
-  playerCurrentScore: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 3,
-  },
-  scoreInput: {
-    width: 70,
-    borderWidth: 2,
-    borderColor: '#3da49d',
-    borderRadius: 10,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    paddingVertical: 10,
-    paddingHorizontal: 5,
-    backgroundColor: '#f9f9f9',
-  },
-  startGameButton: {
-    backgroundColor: '#3498db',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginTop: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  disabledButton: {
-    backgroundColor: '#bdc3c7',
-  },
+  playerChipNumText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  playerChipName: { flex: 1, fontSize: 15, fontWeight: '500', color: C.tealDark },
+  playerChipDel: { color: C.red, fontSize: 22, paddingHorizontal: 4 },
+  helperText: { color: C.red, fontSize: 12, textAlign: 'center', marginTop: 8 },
 
-  // Game Screen
+  // ── Game ──────────────────────────────────────────────────────────────────────
   roundHeader: {
-    alignItems: 'center',
-    paddingVertical: 20,
-    paddingHorizontal: 20,
-    backgroundColor: '#fff',
-    marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f0f0f0',
-  },
-  roundTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  activePlayersList: {
-    paddingHorizontal: 20,
-    marginBottom: 20,
-  },
-  playerRow: {
+    backgroundColor: C.teal,
+    padding: 16,
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 15,
-    borderRadius: 10,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
   },
-  playerInfo: {
+  roundHeaderTitle: { fontSize: 18, fontWeight: '600', color: '#fff' },
+  roundHeaderSub: { fontSize: 13, color: 'rgba(255,255,255,0.75)' },
+  gameBody: { padding: 16 },
+  tapHint: { fontSize: 12, color: C.textMuted, marginBottom: 12 },
+  playerGameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
-  },
-  playerDetails: {
-    marginLeft: 12,
-  },
-  playerScore: {
-    fontSize: 13,
-    color: '#999',
-    marginTop: 3,
-  },
-  scoreInput: {
-    width: 70,
-    borderWidth: 1,
-    borderColor: '#3498db',
-    borderRadius: 8,
-    textAlign: 'center',
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-    paddingVertical: 8,
-    paddingHorizontal: 5,
-    backgroundColor: '#f9f9f9',
-  },
-  endRoundButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  resetGameButton: {
-    backgroundColor: '#ffbf38',
-    paddingVertical: 15,
-    paddingHorizontal: 40,
-    borderRadius: 25,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 20,
-    shadowColor: '#ffbf38',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  gameButtonsContainer: {
-    flexDirection: 'column',
-    gap: 10,
-  },
-
-  // Loser Panel
-  loserPanel: {
-    marginHorizontal: 20,
-    marginBottom: 20,
-    backgroundColor: '#f8d7da',
-    padding: 15,
+    backgroundColor: C.white,
     borderRadius: 10,
-    borderLeftWidth: 4,
-    borderLeftColor: '#721c24',
-  },
-  panelTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#721c24',
-    marginBottom: 12,
-  },
-  loserItem: {
-    backgroundColor: '#fff',
-    padding: 10,
-    borderRadius: 8,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: 13,
     marginBottom: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
   },
-  loserName: {
-    color: '#333',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  loserScore: {
-    color: '#666',
-    fontSize: 14,
-  },
-
-  // Winner Screen
-  winnerScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-  },
-  winnerContainer: {
-    alignItems: 'center',
-    paddingHorizontal: 20,
-  },
-  crownEmoji: {
-    fontSize: 60,
-    marginBottom: 10,
-  },
-  winnerEmoji: {
-    fontSize: 50,
-    marginBottom: 20,
-  },
-  winnerTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
-    color: '#ffbf38',
-    marginBottom: 20,
-  },
-  winnerNameContainer: {
-    backgroundColor: '#fff',
-    paddingHorizontal: 30,
-    paddingVertical: 20,
+  playerGameRowOut: { opacity: 0.5, backgroundColor: '#f5f5f5' },
+  playerGameRank: {
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    marginBottom: 30,
-    borderWidth: 3,
-    borderColor: '#ffbf38',
-    width: '100%',
+    backgroundColor: C.teal,
     alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
-  winnerName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  gameStatsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    width: '100%',
-    marginBottom: 30,
-  },
-  statBox: {
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#999',
-    marginBottom: 5,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#3da49d',
-  },
-  celebrationContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  confetti: {
-    fontSize: 28,
-    marginVertical: 5,
-    letterSpacing: 8,
-  },
-  winnerButtonsContainer: {
-    flexDirection: 'column',
-    gap: 15,
-    width: '100%',
-  },
-  playAgainButton: {
-    backgroundColor: '#3da49d',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 28,
-    alignItems: 'center',
-    shadowColor: '#3da49d',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  backMoreButton: {
-    backgroundColor: '#e74c3c',
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 28,
-    alignItems: 'center',
-    shadowColor: '#e74c3c',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 6,
-  },
+  playerGameRankText: { color: '#fff', fontSize: 13, fontWeight: '600' },
+  playerGameInfo: { flex: 1 },
+  playerGameName: { fontSize: 15, fontWeight: '500', color: C.text },
+  playerGameTotal: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  playerGameScore: { fontSize: 20, fontWeight: '500', color: C.textMuted, minWidth: 44, textAlign: 'right' },
 
-  // More Tab
-  moreTabContainer: {
-    flexGrow: 1,
-    paddingBottom: 100,
-  },
-  moreHeaderSection: {
+  // ── Winner ────────────────────────────────────────────────────────────────────
+  winnerContent: {
     alignItems: 'center',
-    marginBottom: 40,
-    paddingTop: 20,
+    padding: 24,
+    paddingTop: 40,
+    paddingBottom: 60,
   },
-  moreHeaderEmoji: {
-    fontSize: 50,
-    marginBottom: 10,
+  winnerCrown: { fontSize: 60, marginBottom: 4 },
+  winnerLabel: { fontSize: 18, color: C.textMuted, marginBottom: 8 },
+  winnerNameBox: {
+    borderWidth: 2,
+    borderColor: C.amber,
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    marginBottom: 24,
+    width: '100%',
+    alignItems: 'center',
   },
-  moreHeaderTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#333',
+  winnerName: { fontSize: 28, fontWeight: '600', color: C.text },
+  winnerStats: { flexDirection: 'row', gap: 12, marginBottom: 24, width: '100%' },
+  winnerStat: {
+    flex: 1,
+    backgroundColor: C.white,
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: C.border,
   },
-  moreMenuContainer: {
-    paddingHorizontal: 20,
-    marginBottom: 30,
+  winnerStatVal: { fontSize: 22, fontWeight: '600', color: C.teal },
+  winnerStatLbl: { fontSize: 12, color: C.textMuted, marginTop: 4 },
+  confetti: { fontSize: 26, letterSpacing: 8, marginVertical: 4 },
+
+  // ── Rounds Tab ────────────────────────────────────────────────────────────────
+  noDataBox: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 40 },
+  noDataEmoji: { fontSize: 48, marginBottom: 16 },
+  noDataTitle: { fontSize: 16, fontWeight: '500', color: C.text, marginBottom: 8 },
+  noDataSub: { fontSize: 13, color: C.textMuted, textAlign: 'center' },
+  sessionBlock: {
+    margin: 14,
+    backgroundColor: C.white,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    overflow: 'hidden',
   },
+  sessionTitle: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: C.textMuted,
+    padding: 12,
+    backgroundColor: '#f9f9f9',
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+  },
+  tableRow: { flexDirection: 'row', borderBottomWidth: 0.5, borderBottomColor: C.border },
+  tableHeaderRow: { backgroundColor: '#f5f5f5' },
+  tableRowWinner: { backgroundColor: C.amberLight },
+  tableRowOut: { backgroundColor: C.redLight },
+  thName: { width: 100, padding: 9, fontSize: 12, fontWeight: '600', color: C.textMuted },
+  thRound: { width: 64, padding: 9, fontSize: 12, fontWeight: '600', color: C.textMuted, textAlign: 'center' },
+  thTotal: { width: 60, padding: 9, fontSize: 12, fontWeight: '600', color: C.textMuted, textAlign: 'center' },
+  thStatus: { width: 42, padding: 9, fontSize: 12, fontWeight: '600', color: C.textMuted, textAlign: 'center' },
+  tdName: { width: 100, padding: 10, fontSize: 14, fontWeight: '500', color: C.text },
+  tdRound: { width: 64, padding: 10, fontSize: 14, color: C.text, textAlign: 'center' },
+  tdTotal: { width: 60, padding: 10, fontSize: 14, fontWeight: '600', color: C.text, textAlign: 'center' },
+  tdStatus: { width: 42, padding: 10, fontSize: 14, textAlign: 'center' },
+
+  // ── More Tab ──────────────────────────────────────────────────────────────────
+  moreHeader: { alignItems: 'center', paddingVertical: 28 },
+  moreHeaderEmoji: { fontSize: 42 },
+  moreHeaderTitle: { fontSize: 20, fontWeight: '600', color: C.text, marginTop: 8 },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: '#fff',
-    paddingVertical: 18,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    marginBottom: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3da49d',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  menuIcon: {
-    fontSize: 28,
-    marginRight: 15,
-  },
-  menuText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  menuSubtext: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 3,
-  },
-  menuArrow: {
-    fontSize: 24,
-    color: '#3da49d',
-    fontWeight: 'bold',
-  },
-  appInfoSection: {
-    alignItems: 'center',
-    paddingVertical: 30,
-    paddingHorizontal: 20,
-  },
-  appInfoEmoji: {
-    fontSize: 48,
+    backgroundColor: C.white,
+    marginHorizontal: 16,
     marginBottom: 10,
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: C.border,
+    padding: 14,
   },
-  appInfoTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  appInfoVersion: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 5,
-  },
+  menuIcon: { fontSize: 24, marginRight: 14 },
+  menuInfo: { flex: 1 },
+  menuTitle: { fontSize: 15, fontWeight: '500', color: C.text },
+  menuSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  menuArrow: { fontSize: 22, color: C.textMuted },
+  appInfoBox: { alignItems: 'center', paddingVertical: 28 },
+  appInfoTitle: { fontSize: 18, fontWeight: '600', color: C.text, marginTop: 8 },
+  appInfoVersion: { fontSize: 12, color: C.textMuted, marginTop: 4 },
 
-  // Tab Navigation
-  tabNavigation: {
-    flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderTopWidth: 1,
-    borderTopColor: '#f0f0f0',
-    paddingBottom: 10,
-    paddingTop: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  tabButton: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 8,
-  },
-  activeTabButton: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#3da49d',
-  },
-  tabIcon: {
-    fontSize: 24,
-    marginBottom: 4,
-  },
-  tabLabel: {
-    fontSize: 12,
-    color: '#999',
-    fontWeight: '500',
-  },
-  activeTabLabel: {
-    color: '#3da49d',
-    fontWeight: '600',
-  },
-
-  // Modals
+  // ── Score Modal (bottom sheet) ────────────────────────────────────────────────
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
   },
-  modalContent: {
-    backgroundColor: '#fff',
+  bottomSheet: {
+    backgroundColor: C.white,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+  },
+  sheetHandle: {
+    width: 36,
+    height: 4,
+    backgroundColor: C.border,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  sheetTitle: { fontSize: 18, fontWeight: '600', color: C.text, marginBottom: 4 },
+  sheetSub: { fontSize: 13, color: C.textMuted, marginBottom: 16 },
+  bigScoreInput: {
+    borderWidth: 2,
+    borderColor: C.teal,
+    borderRadius: 10,
+    padding: 14,
+    fontSize: 32,
+    fontWeight: '600',
+    textAlign: 'center',
+    color: C.text,
+    backgroundColor: '#f9f9f9',
+    marginBottom: 16,
+  },
+  quickRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+  quickBtnPos: {
+    backgroundColor: C.tealLight,
     borderRadius: 20,
-    padding: 25,
-    width: '80%',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
   },
-  modalTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: 20,
+  quickBtnPosText: { color: C.tealDark, fontSize: 13, fontWeight: '600' },
+  quickBtnNeg: {
+    backgroundColor: '#FCEBEB',
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+  },
+  quickBtnNegText: { color: C.red, fontSize: 13, fontWeight: '600' },
+  sheetActions: { flexDirection: 'row', gap: 10, marginTop: 16 },
+
+  // ── Centered Modals ───────────────────────────────────────────────────────────
+  centeredModal: {
+    backgroundColor: C.white,
+    borderRadius: 16,
+    padding: 24,
+    width: '85%',
+    alignSelf: 'center',
+    // Override overlay to center
+    marginTop: 'auto',
+    marginBottom: 'auto',
+  },
+  centeredModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: C.text,
     textAlign: 'center',
+    marginBottom: 16,
   },
-  languageOption: {
-    paddingVertical: 15,
-    paddingHorizontal: 15,
+  langOption: {
     backgroundColor: '#f5f5f5',
     borderRadius: 10,
-    marginBottom: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    marginBottom: 10,
   },
-  languageText: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
+  langOptionActive: {
+    backgroundColor: C.tealLight,
+    borderWidth: 1.5,
+    borderColor: C.teal,
   },
-  aboutText: {
-    fontSize: 15,
-    color: '#666',
-    lineHeight: 22,
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  contactItem: {
-    backgroundColor: '#f5f5f5',
-    padding: 15,
-    borderRadius: 10,
+  langOptionText: { fontSize: 15, fontWeight: '500', color: C.text },
+  aboutText: { fontSize: 14, color: C.textMuted, lineHeight: 22, marginBottom: 16 },
+  contactRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 15,
+    paddingVertical: 11,
+    borderBottomWidth: 0.5,
+    borderBottomColor: C.border,
+    gap: 12,
   },
-  contactIcon: {
-    fontSize: 24,
-    marginBottom: 8,
+  contactIcon: { fontSize: 20 },
+  contactLabel: { fontSize: 14, color: C.blue },
+
+  // ── Tab Bar ───────────────────────────────────────────────────────────────────
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: C.white,
+    borderTopWidth: 0.5,
+    borderTopColor: C.border,
+    paddingBottom: Platform.OS === 'ios' ? 16 : 6,
+    paddingTop: 6,
   },
-  contactText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  closeButton: {
-    backgroundColor: '#3da49d',
-    paddingVertical: 12,
-    paddingHorizontal: 25,
-    borderRadius: 10,
+  tabBtn: {
+    flex: 1,
     alignItems: 'center',
-    marginTop: 10,
+    paddingVertical: 4,
   },
-  closeButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  tabBtnActive: {
+    borderTopWidth: 2,
+    borderTopColor: C.teal,
   },
+  tabIcon: { fontSize: 22, marginBottom: 2 },
+  tabLabel: { fontSize: 11, color: C.textMuted },
+  tabLabelActive: { color: C.teal, fontWeight: '600' },
 });
