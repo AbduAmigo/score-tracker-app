@@ -56,7 +56,7 @@ const T = {
     contact: 'تواصل معي',
     close: 'إغلاق',
     aboutContent:
-      'أنا عبد الله أحمد، مطور تطبيقات ومواقع سوداني، بخبرة تمتد لتسع (9) سنوات في بناء وتطوير الحلول التقنية الذكية المعتمدة على الذكاء الاصطناعي (AI).',
+      'أنا عبد الله أحمد، مطور تطبيقات ومواقع، بخبرة تمتد لتسع (9) سنوات في بناء وتطوير الحلول التقنية الذكية المعتمدة على الذكاء الاصطناعي (AI).',
     minPlayers: 'أضف لاعبَين على الأقل للبدء',
     maxScoreLabel: 'حد الإقصاء: 31 نقطة',
     status: 'الحالة',
@@ -102,7 +102,7 @@ const T = {
     contact: 'Contact Me',
     close: 'Close',
     aboutContent:
-      'I am Abdullah Ahmed, a Sudanese web and application developer with nine years of comprehensive experience. I specialize in building intelligent solutions powered by AI and Machine Learning.',
+      'I am Abdullah Ahmed, web and application developer with nine years of comprehensive experience. I specialize in building intelligent solutions powered by AI and Machine Learning.',
     minPlayers: 'Add at least 2 players to begin',
     maxScoreLabel: 'Elimination threshold: 31 pts',
     status: 'Status',
@@ -809,7 +809,7 @@ export default function App() {
     { icon: '[in]', label: 'LinkedIn', url: 'https://linkedin.com/in/abduamigo' },
     { icon: '🔗', label: 'GitHub', url: 'https://github.com/abduAmigo' },
     { icon: '🌐', label: 'asserai.com', url: 'https://asserai.com' },
-    { icon: '✉️', label: 'me@asserai.com', url: 'mailto:me@asserai.com' },
+    { icon: '✉️', label: 'support@asserai.com', url: 'mailto:support@asserai.com' },
   ];
 
   const renderContactModal = () => (
