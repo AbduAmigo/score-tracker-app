@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ScoreTrackerApp",
-    "slug": "ScoreTrackerApp",
+    "name": "ScoreTracker",
+    "slug": "ScoreTracker",
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -16,12 +16,13 @@
       "supportsTablet": true
     },
     "android": {
+      "package": "com.asserai.scoretracker",
+      "versionCode": 2,
+      "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.abdu_amigo.ScoreTrackerApp"
+      }
     },
     "web": {
       "favicon": "./assets/favicon.png"
