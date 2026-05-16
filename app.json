@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "ScoreTracker",
-    "slug": "ScoreTracker",
-    "version": "1.0.2",
+    "slug": "ScoreTrackerApp",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,7 +17,7 @@
     },
     "android": {
       "package": "com.asserai.scoretracker",
-      "versionCode": 2,
+      "versionCode": 4,
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -27,6 +27,15 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "react-native-google-mobile-ads",
+        {
+          "androidAppId": "ca-app-pub-2119923020720839~3474936061",
+          "iosAppId": "ca-app-pub-2119923020720839~3474936061"
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "6e1e07a8-ce22-4332-9a72-1a4b24cc8926"

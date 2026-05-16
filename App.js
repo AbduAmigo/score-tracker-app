@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -16,10 +16,22 @@ import {
   Linking,
   Dimensions,
 } from 'react-native';
+import {
+  InterstitialAd,
+  AdEventType,
+  TestIds,
+} from 'react-native-google-mobile-ads';
 
 const MAX_PLAYERS = 10;
 const MAX_SCORE = 31;
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
+// ─── AdMob ────────────────────────────────────────────────────────────────────
+// Use TestIds.INTERSTITIAL during development; swap to your real unit ID for
+// production builds.
+const INTERSTITIAL_AD_UNIT_ID = __DEV__
+  ? TestIds.INTERSTITIAL
+  : 'ca-app-pub-2119923020720839/6142067242';
 
 // ─── Translations ────────────────────────────────────────────────────────────
 const T = {
@@ -168,6 +180,67 @@ export default function App() {
   const [aboutModal, setAboutModal] = useState(false);
   const [contactModal, setContactModal] = useState(false);
 
+  // ── AdMob Interstitial ───────────────────────────────────────────────────────
+  // We keep a single interstitial instance and reload it after each show.
+  const interstitialRef = useRef(null);
+  const [adLoaded, setAdLoaded] = useState(false);
+  // Pending winner data — held until the ad closes (or fails), then we navigate.
+  const pendingWinnerRef = useRef(null);
+
+  // Create and load the interstitial once on mount, then reload after each use.
+  const loadInterstitial = useCallback(() => {
+    const ad = InterstitialAd.createForAdRequest(INTERSTITIAL_AD_UNIT_ID, {
+      requestNonPersonalizedAdsOnly: false,
+    });
+
+    const unsubLoaded = ad.addAdEventListener(AdEventType.LOADED, () => {
+      setAdLoaded(true);
+    });
+
+    const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      // Ad dismissed — navigate to winner screen now
+      setAdLoaded(false);
+      unsubLoaded();
+      unsubClosed();
+      unsubError();
+      if (pendingWinnerRef.current) {
+        const { finalSession, updatedPlayers } = pendingWinnerRef.current;
+        pendingWinnerRef.current = null;
+        setAllSessions(prev => [...prev, JSON.parse(JSON.stringify(finalSession))]);
+        setCurrentSession(finalSession);
+        setPlayers(updatedPlayers);
+        setPhase('winner');
+      }
+      // Pre-load the next ad for the next game
+      loadInterstitial();
+    });
+
+    const unsubError = ad.addAdEventListener(AdEventType.ERROR, () => {
+      // Ad failed — navigate to winner screen anyway
+      setAdLoaded(false);
+      unsubLoaded();
+      unsubClosed();
+      unsubError();
+      if (pendingWinnerRef.current) {
+        const { finalSession, updatedPlayers } = pendingWinnerRef.current;
+        pendingWinnerRef.current = null;
+        setAllSessions(prev => [...prev, JSON.parse(JSON.stringify(finalSession))]);
+        setCurrentSession(finalSession);
+        setPlayers(updatedPlayers);
+        setPhase('winner');
+      }
+      loadInterstitial();
+    });
+
+    ad.load();
+    interstitialRef.current = ad;
+  }, []);
+
+  useEffect(() => {
+    loadInterstitial();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const isRTL = lang === 'ar';
   const dir = isRTL ? 'rtl' : 'ltr';
 
@@ -259,12 +332,21 @@ export default function App() {
   // 🔥 NEW LOGIC: Only end when all but one are eliminated
   if (stillActive.length === 1) {
     const winner = stillActive[0];
-
     const finalSession = { ...newSession, winner };
-    setAllSessions(prev => [...prev, JSON.parse(JSON.stringify(finalSession))]);
-    setCurrentSession(finalSession);
-    setPlayers(updated);
-    setPhase('winner');
+
+    // Store pending winner data and show interstitial ad first
+    pendingWinnerRef.current = { finalSession, updatedPlayers: updated };
+
+    if (adLoaded && interstitialRef.current) {
+      interstitialRef.current.show();
+    } else {
+      // Ad not ready — go straight to winner screen
+      pendingWinnerRef.current = null;
+      setAllSessions(prev => [...prev, JSON.parse(JSON.stringify(finalSession))]);
+      setCurrentSession(finalSession);
+      setPlayers(updated);
+      setPhase('winner');
+    }
     return;
   }
 
